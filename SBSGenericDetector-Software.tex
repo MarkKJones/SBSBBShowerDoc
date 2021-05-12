@@ -1,0 +1,252 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}  % Include figure files
+\usepackage{amsmath}  % Include figure files
+%
+\begin{document}
+\title{SBS-offline for SBSGenericDetector  and BBShower}
+\maketitle
+
+\section{Introduction}
+For the SBSGenericDetector , a detector can be classified as using ADC and/or TDC information.
+The ADC can be different modes: kNone ( no ADC ), kADCSimple ( like a 792 or fastbus), kADC ( F250 in mode 7)
+and kWaveform (F250 in mode 1). ADC data from a F250 in mode 7 can have up three pulses recorded
+per channel per event. ADC data from a F250 in mode 1 is a vector of 4ns samples. The size of the vector is fixed in the configuration of the FADC readout list.  The size of the vector is determined by
+the FADC250 module decoder. 
+
+
+The TDC can be in modes: kNone ( no TDC for detector), kTDCSimple ( only leading edge), kTDC ( leading and trailing edge). 
+
+\section{SBSGenericDetector ReadDatabase}
+A detector is defined as a grouping of elements which are arranged in rows, cols and layers.
+There are two numbering schemes for vectors of the elements.
+Either by element number and like a 2-d array with row and col. 
+The element number is incremented
+by looping through  number of columns inside the looping through rows.
+The BB Preshower is 26 rows of 2 columns in one layer.  The BB SHower is 27 rows of 7 columns in one 
+layer.
+
+The detmap gives the crate, slot, start channel , end channel that are used by the detector.
+One can also specify the reference channel in the detmap.
+The chanmap is array of the element index for the slot and channel.
+Detailed documentation on detmap and chanmap in the main SBS-offline software documentation.
+For the BB Preshower, the left side was put in slot 3 and slot 4 (chan 9)  and the right side slot 3 ( chan 10)
+to slot 6 ( chan 3). The left side is column 0 , so all the even element indices. The right side is 
+column 1, so all the odd element indices. 
+For BB Shower, the signals are in slot 6 (chan 4) to slot 20 (chan 0). As an example, row 0 and col 0-6
+is in slot 6 and channels 4 to 10.
+
+For processing the waveform data to extract the pulse information , there are the following parameters
+that can be set in the database. Those that are arrays can have all elements set individually or have one value which is used for all elements.
+
+
+\begin{center}
+	\begin{tabular}{|c|c|c|}
+		\hline 
+		Parameter nam	& Description &  Global variable\\ 
+		\hline 
+		adc.pedestal	& Array of Pedestals ( not used for waveform) & adc\_ped \\ 
+		\hline 
+		adc.gain	& Array of gain to convert to GeV & adc\_gain\\ 
+		\hline 
+        adc.conv	& Array of conversion factors  (waveform is mV/chan) & adc\_conv\\ 
+		\hline 
+adc.thres	& Array of threshold  (mV) & adc\_thres\\ 
+\hline 
+adc.FixThresBin	& Array of fixed threshold crossing bin  & adc\_FixThresBin\\ 
+\hline 
+adc.NSB	& Array of \# of integration samples before threshold crossing  & adc\_NSB\\ 
+\hline 
+adc.NSA	& Array of \# of integration samples after threshold crossing  & adc\_NSA\\ 
+\hline 
+adc.NPedBin	& Array of \# of samples for pedestal determination  & adc\_NPedBin\\ 
+\hline 
+	\end{tabular} 
+\end{center}
+
+
+ 
+
+
+\section{SBSGenericDetector Decode}
+The total number of  ADC and TDC channels hit in the Decode method is fNhits. The ADC and TDC channels
+are not counted separately. When ADC is in waveform mode, a sample vector is filled with ADC value for
+each 4ns bin. The SBSData::Waveform::Process is called.
+A vector with the raw ADC converted to mV is filled. The pedestal (in mV) is determined by averaging the first NPedBin ADC values. A vector with the pedestal subtracted ADC is filled.
+The threshold crossing bin is found by looping through the sample raw ADC vector and finding the first bin which has a raw ADC value larger than the pedestal plus the threshold.
+If a threshold crossing bin, TC, is found, then the ADC samples are integrated from TC-NSB to TC+NSA-1.
+If no  threshold crossing bin, TC, is found, then the ADC samples are integrated from FixThresBin-NSB to FixThresBin+NSA-1.
+The ADC integration is converted to pC using the 4ns bin width and 50 ohm resistance.
+
+If a threshold crossing bin is found, then the peak amplitude is found within the integration region. The peak, Vpeak,  is the ADC value in the sample which within the integration window (starting from the threshold crossing) the following bin has a smaller ADC value than previous sample.
+To calculate the pulse time, first  $V-{Mid} = (V_{peak} + \mbox{pedestal})/2$ is calculated. Then loops through the
+integration region and finds the sample, i, with which has value greater than Vmid and the next sample, i+1, is
+less than Vmid. The time is $4\mbox{ns}*\left[(i+(V_{Mid}-V_i)/(V_{i+1}-V_i)\right]$.
+If no threshold crossing bin is found, then the time and amplitude are set to zero.
+For now the code only find the first pulse that is above threshold.
+
+For each element that has a hit, then method SBSBBShower::FindGoodHit is called. For now this
+is used to just increment a counter of ngoodhits if the element has a time greater than 0.
+In principal , it can be used to select the good hit when there are multiple hits in an ADC or TDC for a detector element. Presently there for the waveform  data there is no selection of good hits.
+
+
+
+ 
+
+\subsection{SBSGenericDetector Tree variables}
+
+For the tree variables, most are arrays of variable size depending on the number of hits. 
+The total number of  ADC and TDC channels hit in the Decode method is fNhits. The ADC and TDC channels
+are not counted separately.
+\begin{center}
+	\begin{tabular}{|c|c|c|}
+		\hline 
+		Tree name	& Description &  Global variable\\ 
+		\hline 
+		nhits	& Number of total hits & fNHits  \\ 
+		\hline 
+		ngoodhits	& Number of total good hits & fNGoodhits \\ 
+		\hline 
+\end{tabular} 
+\end{center}
+
+If fStorerawHits is set true, then the ADC/TDC raw info is stored.
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+	\hline 
+	Tree name	& Description &  Global variable\\ 
+	\hline 
+	hits.t 	& Array of all hit's Calibrated Leading edge TDC  &fRaw.t  \\ 
+	\hline 
+	hits.t\_te 	&Array of all hit's  Calibrated Trailing edge TDC &fRaw.t\_te  \\ 
+	\hline 
+	hits.t\_tot	&Array of  all hit's TDC Time Over Threshold   &fRaw.t\_ToT  \\ 
+	\hline 
+\end{tabular} 
+\end{center}
+\begin{center}
+	\begin{tabular}{|c|c|c|}
+		\hline 
+		Tree name	& Description &  Global variable\\ 
+		\hline 
+		hits.a 	& Array of all ADC integral of the all hits  (units pC)  &fRaw.a  \\ 
+		\hline 
+		hits.a\_amp 	& Array of all ADC peaks of the all hits  (units mV)  &fRaw.a\_amp  \\ 
+		\hline 
+		hits.a\_time	& Array of all ADC time of the all hits (units mV)  &fRaw.a\_time  \\ 
+		\hline 
+	\end{tabular} 
+\end{center}
+
+The good hit information is the following variables.
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+	\hline 
+Tree name	& Description &  Global variable\\ 
+	\hline 
+nhits	& Number of total hits & fNHits  \\ 
+	\hline 
+ngoodhits	& Number of total good hits & fNGoodhits \\ 
+	\hline 
+row 	& Row of the detector element  & fGood.row  \\ 
+	\hline 
+col 	& Column of the detector element  & fGood.col \\
+	\hline 
+layer	& Layer of the detector element  & fGood.layer \\ 
+	\hline 
+ped	& Pedestal of the good hit (units mV) & fGood.ped \\ 
+	\hline 
+\end{tabular} 
+\end{center}
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+	\hline 
+Tree name	& Description &  Global variable\\ 
+	\hline 
+a	& ADC integral of the good hit (units pC)  &fGood.a  \\ 
+	\hline 
+a\_p	& Pedestal subtracted ADC integral of the good hit  (units pC) & fGood.a\_p \\ 
+	\hline 
+a\_c	& Energy Calibrated Pedestal subtracted ADC integral of the good hit (units GeV) & fGood.a\_c \\ 
+\end{tabular} 
+\end{center}
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+	\hline 
+Tree name	& Description &  Global variable\\ 
+	\hline 
+a\_amp	& ADC peak of the good hit(units mV)  &fGood.a\_amp  \\ 
+\hline 
+a\_amp\_p	& Pedestal subtracted ADC peak of the good hit (units mV) & fGood.a\_amp\_p \\ 
+\hline 
+a\_time	& ADC time of the good hit  (units ns)  &fGood.a\_time  \\ 
+\hline 
+a\_amp	& ADC peak of the good hit (units mV)  &fGood.a\_amp  \\ 
+\hline 
+\end{tabular} 
+\end{center}
+
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+	\hline 
+	Tree name	& Description &  Global variable\\ 
+	\hline 
+	tdc 	& Calibrated Good hit Leading edge TDC  &fGood.t  \\ 
+\hline 
+	tdc\_te 	& Calibrated  Good hit Trailing Edge TDC  &fGood.t\_te  \\ 
+\hline 
+	tdc\_tot 	& Calibrated  Good hit Time over Threshold  &fGood.t\_Tot  \\ 
+\hline 
+\end{tabular} 
+\end{center}
+
+
+\begin{center}
+	\begin{tabular}{|c|c|c|}
+	\hline 
+	Tree name	& Description &  Global variable\\ 
+	\hline 
+	samp\_idx 	& Index in the samples vector for given row-col element &fGood.sidx  \\ 
+	\hline 
+	samp\_nsamps	& Number of samples for a given row-col element &fGood.nsamps  \\ 
+\hline 
+	samp 	& Calibrated Pedestal subtracted ADC samples (units mV) in 4ns bins &fGood.samps  \\ 
+\hline 
+\end{tabular} 
+\end{center}
+
+%\section{ Todo list}
+%\begin{itemize}5
+%	\item In SBS5GenericDetector::Decode have variables to count number of ADC and TDC hits separately. If ADC %has multiple5 pulses  TDC will have multiple hits. 
+%	\item In SBS5Data::Process 
+%\end{itemize}
+
+
+
+\section{Short description of FADC250}
+The FADC250 is a fast data acquisition electronics module which is able to sample a signal pulse at 250MHz (i.e. 4ns time sample).
+It has two main data acquisition modes:
+%
+\begin{itemize}
+	\item{Mode 1: all samples within a defined time window are recorded; this allows to perform the waveform reconstruction offline.}
+	\item{Mode 7: if the recorded pulse passes a defined threshold, the following quantities are recorded: the pedestal, the pulse time, the pulse amplitude, and the pulse integral over a defined time window; Up to 3 pulses can be recorded the trigger window}
+\end{itemize}
+%
+For the SBS hadron calorimeter (HCal) and SBS BBShower/PreSHower, the FADC will be used with acquisition mode 1.
+
+Details on the algorithm of the FADC is given in the manual. Here is a short description.
+In mode 7, a threshold is defined in the ROL FADC  configuration file for each channel in the FADC. When a pulse has one sample that passes the threshold, then that sample is marked
+as the threshold crossing sample, TC.  The pulse is integrated from NSB samples before the TC and NSA samples after the TC. NSB and NSA are programmed in the ROL FADC configuration file.
+The average of first four samples in the trigger window are used to determine the pedestal or VMIN.
+The peak amplitude (VPEAK) is determined by finding a sample beyond TC for which the sample value first decreases.
+The fine time, TF,  is determined in bins of 62.5ps. First the time bin is roughly determined by the time bin of the half amplitude (VMID = (VPEAK + VMIN) / 2)).
+Then the fine time is determined as TF = 64*(VMID – V(N1)) / (V(N1+1) – V(N1)). The sample number N1 is found on the leading edge of the pulse that satisfies
+V(N1) $\leq$ VMID $<$ V(N1+1).
+
+\end{document}
+
+
