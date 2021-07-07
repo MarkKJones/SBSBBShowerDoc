@@ -1,7 +1,6 @@
 \documentclass[11pt]{article}
 \usepackage{graphicx}  % Include figure files
 \usepackage{amsmath}  % Include figure files
-%
 \begin{document}
 \title{SBS-offline for SBSGenericDetector  and BBShower}
 \maketitle
@@ -15,6 +14,44 @@ the FADC250 module decoder.
 
 
 The TDC can be in modes: kNone ( no TDC for detector), kTDCSimple ( only leading edge), kTDC ( leading and trailing edge). 
+
+The constructor sets variables to default values which are given in Table~\ref{tab:con}. Some variables can be set in the  
+\begin{table}
+	\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline 
+\rule[-1ex]{0pt}{2.5ex} Variable & Default  & Comment \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fNrows  &  0 &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fNcolsMax  & 0 &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fNlayers & 0 &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fModeADC & kADCSimple  & SetModeADC(SBSModeADC::Mode mode) \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fModeTDC  & kNone  & SetModeTDC(SBSModeTDC::Mode mode) \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fDisableRefADC  & true  & SetDisableRefADC(Bool\_t b) \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fDisableRefTDC  & true &  SetDisableRefTDC(Bool\_t b)\\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fConst  & 0 &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fSlope  &0  &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fAccCharge  & 0 &  \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fStoreRawHits  & false & SetStoreRawHits(Bool\_t var) \\ 
+\hline 
+\rule[-1ex]{0pt}{2.5ex} fStoreEmptyElements  & true &SetStoreEmptyElements(Bool\_t b)  \\ 
+\hline 
+\end{tabular} 
+\caption{Table of variables in the constructor}\label{tab:con}
+	\end{center}
+\end{table}
+
+
 
 \section{SBSGenericDetector ReadDatabase}
 A detector is defined as a grouping of elements which are arranged in rows, cols and layers.
