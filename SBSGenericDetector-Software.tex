@@ -1,28 +1,52 @@
 \documentclass[11pt]{article}
 \usepackage{graphicx}  % Include figure files
 \usepackage{amsmath}  % Include figure files
+\usepackage{xcolor}
+\usepackage{tabularx}
 \begin{document}
-\title{SBS-offline for SBSGenericDetector  and BBShower}
+\title{SBS-offline for SBSGenericDetector}
 \maketitle
 
 \section{Introduction}
 
-\subsection{SBSGenericDetector}
 SBSGenericDetector is a THaNonTrackingDetector.
 For the SBSGenericDetector , a detector can be classified as using ADC and/or TDC information.
+The SBSGenericDetector is made of SBSElement objects  with each element storing 
+the  x,y,z position and a row,column,layer location with ADC and/or TDC data and parameters.
+The constructor sets variables to default values which are given in Table~\ref{tab:con} and some variables
+that can be set by functions that can be called from your replay script are listed in Table~\ref{tab:con}. 
+You can also set this in the constructor of the detector that inherits from SBSGenericDetector. 
+
+
+The fNrow and fNLayers can be set by parameters read-in during the ReadDatabase. In ReadDatabase, a vector , fElements, is created of SBSElement objects.
+The fDisableRefADC and/or fDisableRefTDC is set to true in ReadDatabase if the reference ADC and/or TDC time channel is designated in 
+the {\it chanmap} when that is read-in.
+
 The ADC can be different modes: kNone ( no ADC ), kADCSimple ( like a 792 or fastbus), kADC ( F250 in mode 7)
 and kWaveform (F250 in mode 1). ADC data from a F250 in mode 7 can have up three pulses recorded
 per channel per event. ADC data from a F250 in mode 1 is a vector of 4ns samples. The size of the vector is fixed in the configuration of the FADC readout list.  The size of the vector is determined by
 the FADC250 module decoder. 
 The TDC can be in modes: kNone ( no TDC for detector), kTDCSimple ( only leading edge), kTDC ( leading and trailing edge). 
-The constructor sets variables to default values which are given in Table~\ref{tab:con}. Some variables can be set by functions that can be called from your replay script. 
-You can also set this in the constructor of the detector that inherits from SBSGenericDetector. 
-If one sets SBSModeADC::Mode not equal to kADC then SetDisableRefADC set to false.
+
+
+
+
+The tree output is controlled by the Podd output definition file. fStoreEmptyElements set to true means that the fGood output structure is filled for all
+fElements regardless in the detector element has data for that event. Otherwise, the fGood output structure is filled with the {\it good hit} 
+for the multi-hit ADC/TDC (this is described later in Section~).
+To save disk space, one can set fStoreEmptyElements is kFALSE so
+that  only elements which had ADC and/or TDC data for the event are written to the output tree.
+To save disk space, the flag fStoreRawHits is set to kFALSE. If one wants to write out all hits in each channel of the multi-hit ADC/TDC, then
+set  fStoreRawHits to kTRUE. {\color{red} Also if one wants to look at the waveform data in the output tree, the set  fStoreRawHits to kTRUE.}
+
+The fConst, fSlope and FAccCharge are parameters used by the calorimeter as corrections for the measured energy. 
+{\color{red} Maybe move this to SBSCalorimeter?}
+
 \begin{table}
 	\begin{center}
 \begin{tabular}{|c|c|c|}
 \hline 
-\rule[-1ex]{0pt}{2.5ex} Variable & Default  & Comment \\ 
+\rule[-1ex]{0pt}{2.5ex} Variable & Default  & Functions \\ 
 \hline 
 \rule[-1ex]{0pt}{2.5ex} fNrows  &  0 &  \\ 
 \hline 
@@ -53,11 +77,8 @@ If one sets SBSModeADC::Mode not equal to kADC then SetDisableRefADC set to fals
 	\end{center}
 \end{table}
 
-\subsection{SBSCalorimeter and SBSBBShower}
-SBSCalorimeter contructor inherits from the SBSGenericDetector and leaves the SBSModeADC::Mode as kADCSimple
-and SBSModeTDC::Mode as  kNone.
-SBSBBShower constructor inherits from the SBSCalorimeter and sets  SetModeADC(SBSModeADC::kWaveform) and
-SetModeTDC(SBSModeTDC::kNone).
+
+
  
 
 
@@ -65,23 +86,30 @@ SetModeTDC(SBSModeTDC::kNone).
 \section{SBSGenericDetector ReadDatabase}
 A detector is defined as a grouping of elements which are arranged in rows, cols and layers.
 The element is defined by the SBSElement class which stores information about the element
-such as its geometry and the TDC and/or ADC data. The TDC and ADC data is stored in structures
-and classes defined in the SBSData class.
-There are two numbering schemes for vectors of the elements.
-Either by element number and like a 3-d array with row, col and layer.
+such as it's x,y,z position and the TDC and/or ADC data. The TDC/ADC data and parameters 
+are stored in structures
+and classes defined in the SBSData and SBSElement class.
+There are two numbering schemes for vectors of the elements. A vector , fElements, is created of SBSElement objects.
+Either by vector index or like a 3-d array with row, col and layer.
 ncols is a parameter that needs to be set. nrows is optional and the default is 1. ncols is an array. 
 If the size of ncols array is 1, then all the nrows are given the same number of columns equal to ncols[0].
 If the ncols array is nrow size , then each row has a different number of columns.
-The nlayers is optional and the default is 1. 
+The nlayers is optional and the default is 1. The total number of elements, fNelem, is fNRow$\times$fNCol$\times$fNlayers.
 
-Need to set the vector parameters xyz ( the x,y and z starting position for the
-geometry) and dxyz ( the dx, dy and dz spacing between elements).
+The fElement vector is filled by constructed an SBSElement object by looping through the layers which is inside a loop
+over the columns which is inside the top loop over the rows. Assume that there is only one layer, the index of the fElement vector 
+runs from 0 (row=0,col=0), 1 (row=0,col=1) ... fNcol-1 (row=0,col=fNcol-1), fNcol (row=1,col=0) ... fNelem-1 (row=fNrow-1,col=fNcol-1).
+The parameter start\_chanmap is optional and is the offset between the element iD used in the {\it chanmap}
+and the index of the fElements vector which goes from zero to fNelems-1. The element ID is set for each SBSElement and equals
+the number used in the chanmap parameter. 
 
-The parameter start\_chanmap is optional and is not used in the code. The parameter
-row\_offset\_pattern is optional and is not used in the code. Maybe these can be eliminated.
 
 
-
+The vector parameters xyz ( the x,y and z starting position for the
+geometry) and dxyz ( the dx, dy and dz spacing between elements) need to be in the detector database.
+When the SBSElement is constructed in the looping over the rows, columns and layers, the position is  set to $x = xyz[0] - nr*dxyz[0]$,
+$y = xyz[0] - nc*dxyz[0]$, $z = xyz[0] - nlayer*dxyz[0]$. {\color{red} Need to modify code so x,y,z position can be set for each element
+	separately.}
 
 
 
@@ -96,16 +124,18 @@ for each module that is used by the detector.
 The reference time index is an integer that indicates which reference time indicated in the chanmap to use
 for that module.
 The detmap vector is an input to the FillDetMap function of the THaDetMap which produces the object fDetMap.
-
+To indicate which channel in a module is the reference time in the chanmap, one puts a -1000. The order of the
+reference times in the chanmap gives the index of reference time.
 
 
 The chanmap is vector of the element index for the crate, slot and channel. The chanmap
 order must follow the ordering of the crate and slots in the detmap.
 It is an optional parameter. Without the chanmap defined, the default is to assign the
 elements to each channel in the detmap in order.
-When creating the chanmap, the element index starts at zero 
+When creating the chanmap, the element ID normally starts at zero 
 and the maximum is the total number of elements ( nrow x ncol x nlayer)
-minus one. The chanmap format is to match the number of channels in the detmap and
+minus one. If the detector wants the element ID to start at another value (e.g. 1), then the parameter
+start\_chanmap needs to be set to the starting element ID value ()  The chanmap format is to match the number of channels in the detmap and
 in the same order of the detmap. If a channel is not used by the detector then put a -1
 in the chanmap. If the channel is a reference time, then put a -1000 in the chanmap.
 
@@ -172,6 +202,8 @@ The same parameters can be read-in for the ADC reference time but the "adc" is r
 		\hline 
 adc.thres	&  threshold  (mV) & adc\_thres\\ 
 \hline 
+       adc.GoodTimeCut &  Expected Good Time peak (ns) (default=0) & adc\_GoodTimeCut \\
+\hline
 adc.FixThresBin	&  fixed threshold crossing bin  & adc\_FixThresBin\\ 
 \hline 
 adc.NSB	&  \# of integration samples before threshold crossing  & adc\_NSB\\ 
@@ -196,13 +228,16 @@ If the GenericDetector has TDC info, then the element is set to have an SBSData:
  the offset, calibration and GoodTimeCut are loaded.
 If the GenericDetector has ADC info, then it depends on the ADC mode.
 If the ADC mode is kWaveform, the element is set to have an SBSData::Waveform data function and
-the pedestal ( which is not used), gain and conversion factor are loaded. For the kWaveform
+the pedestal ( which is not used), gain, conversion factor and good time cut are loaded. For the kWaveform
 there is an additional call to load the parameter used to determine ADC signal in the waveform.
-If the ADC mode is not kWaveform , the element is set to have an SBSData::ADC and the
+If the ADC mode is kADC, the element is set to have an SBSData::ADC data function and
+the pedestal ( which is not used), gain, conversion factor and good time cut are loaded. For the kADC
+there is an additional call to load the parameters used to determine ADC signal in the F250 module.
+If the ADC mode is neither kWaveform nor kADC , the element is set to have an SBSData::ADC and the
 pedestal and gain are loaded.
    
 
-The code creates a vector of reference time elements called fRefElements bases on the SBSElement class.
+The code creates a vector of reference time elements called fRefElements based on the SBSElement class.
 It follows the same logic for creating the reference time elements as the detector elements, 
 except that the reference time element will either be a TDC or an ADC reference time element.
 When the reference time element is created the row number and element number are both
@@ -212,14 +247,7 @@ When the reference time element is created the row number and element number are
 
 
 
-\subsection{BBShower}
-The BB Preshower is 26 rows of 2 columns in one layer.  The BB SHower is 27 rows of 7 columns in one 
-layer.
- For the BB Preshower, the left side was put in slot 3 and slot 4 (chan 9)  and the right side slot 3 ( chan 10)
- to slot 6 ( chan 3). The left side is column 0 , so all the even element indices. The right side is 
- column 1, so all the odd element indices. 
- For BB Shower, the signals are in slot 6 (chan 4) to slot 20 (chan 0). As an example, row 0 and col 0-6
- is in slot 6 and channels 4 to 10.
+
 
 
 \section{SBSGenericDetector Decode}
@@ -228,21 +256,44 @@ First the ClearEvent method is called. This clears the ADC and/or  TDC data  in 
 
 If the reference times are in the channel map, then the code looks for the reference time in the data.
 The code loops the channels in each module. If there is event data for the reference time channel,
-then the data is processed for the FRefElement with DecodeADC or DecodeTDC depending if the module is an ADC or TDC.
+then the data is processed for the fRefElement with DecodeADC or DecodeTDC depending if the module is an ADC or TDC.
 Only expect ADC reference times for the FADCs. For ADC waveform, the time for the pulse in 
 the reference time is determined the same way as the time a regular detector element.
 The TDC reference times are processed the same as a regular detector element.
 The total number of  ADC and TDC reference channels hit in the Decode method is fNRefhits.
 
-The code loops through the  channels in each module 
+The code loops through the  channels in each module. 
 If there is event data for the detector channel,
 then the data is processed for that fElement  with DecodeADC or DecodeTDC 
 depending if the module is an ADC or TDC.
 The total number of  ADC and TDC channels hit in the Decode method  is fNhits. The ADC and TDC channels
-are not counted separately. {\bf Look into adding counter for the ADC and TDc separately and put in the tree.}
+are not counted separately. {\color{red}  Look into adding counter for the ADC and TDc separately and put in the tree.}
 
 \subsection{SBSGenericDetector DecodeTDC}
-The method assumes that the reference time elements will be processed first in the Decode method.
+The DecodeTDC method calls the SBSData method TDC::Process or TDC::ProcessSimple for each detector element that has a TDC.
+TDC::Process fills the fTDC which is a SBSData::TDCData container for that detector or reference time element. 
+TDCData holds the offset, calibration, GoodTimeCut and the good\_hit index. The  offset, calibration, GoodTimeCut
+are set in SBSGenericDetector::ReadDatabase. good\_hit index is an integer variable
+which holds the index of the good TDC hit that is determined by the SBSGenericDetector::FindGoodHit method 
+that is described later. TDCData also contains a vector, "hits"  of the SBSData::TDCHit structure. 
+The  SBSData::TDCHit structure contains the "le" SingleData structure, "te" SingleData structure,
+"ToT" SingleData structure and "elem ID" ,the integer of the element ID. The SBSData::SingleData structure contains
+the "raw" and "cal" (the raw and calibrated values). For a TDC, the raw value is reference time subtracted and in units of channels and the calibrated value is the (raw value - offset)*cal.
+
+The reference time elements are processed first in the Decode method with DecodeTDC called with IsRef flag
+set to kTRUE.
+For either a reference or detector time, the TDC data extraction is the same. 
+
+If the
+TDC mode is kTDCSimple, then the SBSData TDC::ProcessSimple is called and the vector of  TDCData objects, fTDC,
+is filled for each hit in the TDC channel. 
+If the TDC mode is kTDC, the method loops through the hits for that element 
+and first determines whether the hit is leading (LE)  or trailing edge (TE).
+If the first hit is a TE, then it skips that hit. If the last hit is a LE, then that it skips that hit.
+If it has passed the first two tests, then the hit is processed using the SBSData method TDC::Process.
+TDC::Process has the arguments of the element ID, raw time value and edge value (LE = 0, TE = 1).
+The raw time value is the data from the channel minus reftime (local variable determined earlier in DecodeTDC and described in the next paragraph).
+When the reference time is being processed reftime is set to zero.
 
 If a detector time is being processed, then the method first determines the good reference
 time to use for the detector element based on the module's reference time index. 
@@ -250,22 +301,6 @@ It loops through the reference time TDC hits and selects the reference time hit 
 the smallest abs(Tdc -GoodTimeCut). The GoodTimeCut is in ns. This good reference time is the raw time
 in units of channels and is locally stored in the variable reftime. If a reference time is being processed,
 then reftime is set to zero.
-
-For either a reference or detector time, the method loops through the hits for that element 
-and first determines whether the hit is leading (LE)  or trailing edge (TE).
-If the first hit is a TE, then it skips that hit. If the last hit is a LE, then that it skips that hit.
-If it has passed the first two tests, then the hit is processed using the SBSData method TDC::Process.
-TDC::Process has the arguments of the element ID, raw time value and edge value (LE = 0, TE = 1).
-The raw time value that is loaded is the raw time value from the channel minus reftime (local variable determined earlier in DecodeTDC).
-
-TDC::Process fills the fTDC which is a SBSData::TDCData container for that detector or reference time element. 
-TDCData holds the offset, calibration, GoodTimeCut and the good\_hit. The  offset, calibration, GoodTimeCut
-are set in SBSGenericDetector::ReadDatabase. good\_hit is an integer variable
-which holds the index of the good TDC hit that is determined by the SBSGenericDetector::FindGoodHit method 
-that is described later. TDCData also contains a vector, "hits"  of the SBSData::TDCHit structure. 
-The  SBSData::TDCHit structure contains the "le" SingleData structure, "te" SingleData structure,
-"ToT" SingleData structure and "elem ID" ,the integer of the element ID. The SBSData::SingleData structure contains
-the "raw" and "cal" (the raw and calibrated values). For a TDC, the raw value is reference time subtracted and in units of channels and the calibrated value is the (raw value - offset)*cal.
 
 TDC::Process has a counter array fEdgeIdx[edge] with edge = 0 (LE) or 1 (TE).
 If the TDC detects LE and TE, then the goal is to first find a LE hit and match it with a TE hit which usually
@@ -280,31 +315,26 @@ The element ID is loaded into the hits vector.
   whether the next hit is a LE or TE. 
   The TDCHit hits vector is ideally assuming that it will have an LE and TE (or just LE if the TDC module
   was programmed that way). If there is only a LE or TE filled bu a hit, then the missing information will have
-  a value of zero. {\bf SHould the deafult value be kBig?}
+  a value of zero. After looping through all the hits for that element, the element will have an TDC data structure
+  that contains the TDCHit hits vector. 
   
-  After looping through all the hits for that element, the element will have an TDC data structure
-  that contains the TDCHit hits vector. In the SBSGenericDetector::CoarseProcess, there is a
-  call to   SBSGenericDetector::FindGoodHit for each element that has TDC data and the hit which
-  is the "good" hit is chosen.
+
     
 
 
 
 
 \subsection{SBSGenericDetector DecodeADC}
-If ADC mode is kADCSimple, the SBSData::ADC Process method is called with a single argument.
 It  fills the fADC which is a SBSData::ADCData container for that detector or reference time element. 
-The SBSData ADCData structure holds the pedestal, calibration, time calibration ( for FADC) 
-and the amplitude calibration. In addition, ADCData contains vector of the PulseADCData structure, hits, and
+The SBSData ADCData structure holds the pedestal, calibration, time calibration ( for FADC).
+ In addition, ADCData contains vector of the PulseADCData structure, hits, and
  the good\_hit which is the index number of the good
-hit which are needed for multihit FADC.  For a kADCSimple mode , only the vector will just
+hit which are needed for multihit FADC. If ADC mode is kADCSimple, the SBSData::ADC Process method is called with a single argument.
+ For a kADCSimple mode , only the fADC hits vector will just
 be the single hit. The PulseADCData is a structure containing the integral, time and amplitude
 which are all SingleData structures having the "raw" and "val" ( calibrated value).
 For the kADCSimple mode, the ADC::Process with single argument fills the SingleData integral with the raw data 
 and the (raw-ped)*cal with the time and amplitude set to zero and sets fHasData to true.
-
-{\bf The ADC mode kADC which is for mode = 7 in the FADC250 needs to be worked on}
-
 
 When ADC is in waveform mode, a sample vector is filled with ADC value for
 each 4ns bin. The SBSData::Waveform::Process is called.
@@ -321,14 +351,28 @@ less than Vmid. The time is $4\mbox{ns}*\left[(i+(V_{Mid}-V_i)/(V_{i+1}-V_i)\rig
 If no threshold crossing bin is found, then the time and amplitude are set to zero.
 For now the code only find the first pulse that is above threshold.
 
+{\color{red} Need to implemented the FADC reference time subtraction. Need to  get multiple hits from the
+	FADSC waveform.}
+
+\subsection{SBSGenericDetector FindGoodHit}
+  The final part of the Decode method is to loop through all the fELements and
+call the SBSGenericDetector::FindGoodHit for each element.
+If the element that has TDC data and the hit which
+is the "good" hit is marked by setting the variable fTDC.good\_hit which is the hit index   ofthe
+TDC hit which has the closest time to the GoodTimeCut parameter (comparison in units of ns).
+If one wants to access the TDCData structure of the good hit, then the SBSData function GetGoodHit()
+can be called. If the TDC channel has any hits then the good\_hit will be set.
+
+If the element has ADC data and the mode is kADCSimple, them the  fTDC.good\_hit is set to zero.
+If the mode is kADC, then the code loops through all hits in the channel and marks
+good\_hit index for the hit that is closest  to the GoodTimeCut parameter.
+{\color{red} For now only one hit is found fro the kWaveform mode so good\_hit index set to zero}
 
 
 
-
-
-\subsection{SBSGenericDetector::CoarseProcess}
+\section{SBSGenericDetector::CoarseProcess}
 The CoarseProcess method separately loops through the reference time elements and the detector elements.
-The goal is to fill the fRefGood and the fGood SBSGenericOutputData structures. The
+The goal is to fill the fRefGood and the fGood SBSGenericOutputData structures for the output tree. The
 SBSGenericOutputData is a structure the contains vectors of the row,col,layer, element ID.
 SBSGenericOutputData contains vectors of the ADC integral, pedestal subtracted ADC integral, 
 the calibrated   pedestal subtracted ADC integral, FADC pulse amplitude, FADC pedestal subtracted pulse amplitude
@@ -351,44 +395,39 @@ all hits in the reference time elements in the fRefRaw SBSGenericOutputData stru
  If true, then the fRefRaw struture is filled with the element ID and the calibrated LE, TE and Tot values
  for all hits in an element for all elements in the loop that have TDC data.
  
- {\bf Need to add code for processing the ADC reference times}
+ {\color{red} Need to add code for processing the ADC reference times}
  
- The method then loops through all the detector elements. {\bf It calls SBSElement:CoarseProcess which fills
- the energy for the element. This should be eliminated?}.
-The SBSGenericDetector::FindGoodHit method is called for the element. If the element has TDC data
-then the "good" TDC hit is determined by finding the TDC hit which has the smallest abs(Tdc -GoodTimeCut). The GoodTimeCut is in ns. {\bf If the element has ADC data, then first hit is used. Presently no multihit with
-the waveform} The detector class that inherit from GenericDetector could implement their own FindGoodHit method.
-
-
-After the good hit is determined, if the element has TDC data, then fGood is filled with TDC information. If  fStoreEmptyElements is true then the TDC information is filled with kBig. If fStoreRawHits is true, then all the hits in the element is
+ The method then loops through all the detector elements. 
+If the element has TDC data, then fGood is filled with TDC information. If  fStoreEmptyElements is true then the TDC information is filled with kBig. If fStoreRawHits is true, then all the hits in the element is
 loaded into the fRaw SBSGenericOutputData structure.
 
 Next, if the element has ADC data (fHasData is true), then the "good" ADC 
 hit is used to fill the fGood with ADC information.
 If the ADCmode is kADCSimple, then the fGood pedestal, raw integral ("a"), raw -pedestal ("a\_p")
 and the calibrated value ("a\_c") are loaded. For kADC mode, the amplitude ("a\_amp"),
-amplitude - pedestal ("a\_amp\_p") and pulse time ("a\_time") are loaded. {\bf need to work on this but at this point noone uses this adc mode}. If fStoreRawHits is true ( by default it is false) then the calibrated integral,
-calibrated amplited and pulse time are loaded into fRaw structure. {\bf Need to add the ADC element ID, since it will be different than the TDC element ID}
+amplitude - pedestal ("a\_amp\_p") and pulse time ("a\_time") are loaded. If fStoreRawHits is true ( by default it is false) then the element ID, 
+calibrated integral,
+calibrated amplitude and pulse time are loaded into fRaw structure. 
  If  fStoreEmptyElements is true ( it is set true by default) then the ADC information is filled with zero.
  If the ADC mode is Waveform, then the  fGood pedestal, raw integral ("a"), raw -pedestal ("a\_p"), 
  the calibrated value ("a\_c"), the amplitude ("a\_amp"),
- amplitude - pedestal ("a\_amp\_p") and pulse time ("a\_time") are loaded. In addition, the
+ amplitude - pedestal ("a\_amp\_p") and pulse time ("a\_time") are loaded. If fStoreRawHits is true, the
  index of the sample data in the "samps" vector ("sidx"), the number of samples per element ("nsamps") and the
- calibrated sample data ("samps") are loaded into a vector for all elements.
- {\bf Presently, there is no check on a "good hit", since there is only one hit determined per waveform.}
- 
- In general, a detector class that inherits from the GenericDetector should first call GenericDetector::CoarseProcess and the used the fGood structure to process the data for 
- further analysis.
- 
+ calibrated sample data ("samps") are loaded into a vector for all elements with data.
 
  
+ In general, a detector class that inherits from the GenericDetector should first call GenericDetector::CoarseProcess.
  
 
-\subsection{SBSGenericDetector Tree variables}
+ \section{SBSGenericDetector::FineProcess}
+ Does nothing.
+ 
+
+\section{SBSGenericDetector Tree variables}
 
 For the tree variables, most are arrays of variable size depending on the number of hits. 
 The total number of  ADC and TDC channels hit in the Decode method is fNhits. The ADC and TDC channels
-are not counted separately.
+are not counted separately. {\color{red} Need to add ADC reference time variables. Need to add hits.ADCElemID }
 \begin{center}
 	\begin{tabular}{|c|c|c|}
 		\hline 
@@ -396,17 +435,42 @@ are not counted separately.
 		\hline 
 		nhits	& Number of total hits & fNHits  \\ 
 		\hline 
-		ngoodhits	& Number of total good hits & fNGoodhits \\ 
+nrefhits	& Number of total reference time hits & fNRefHits  \\ 
+		\hline 
+		ngoodTDChits	& Number of total good TDC hits & fNGoodTDChits \\ 
+		\hline 
+ngoodADChits	& Number of total good ADC hits & fNGoodADChits \\ 
 		\hline 
 \end{tabular} 
 \end{center}
 
-If fStorerawHits is set true, then the ADC/TDC raw info is stored.
-
+The good hit information is the following variables.
+If fStorerawHits is set true, then the TDC hit info is stored.
+The TDC reference times have the same tree variable names  with {\it Ref.} in front
+of the name.
 \begin{center}
 \begin{tabular}{|c|c|c|}
 	\hline 
 	Tree name	& Description &  Global variable\\ 
+\hline 
+  tdcelemID 	& Element ID in chanmap  & fGood.TDCelemID  \\ 
+\hline 
+  tdcrow 	& Row   & fGood.TDCrow  \\ 
+\hline
+tdccol 	& Column   & fGood.TDCcol \\
+\hline 
+tdclayer	& Layer   & fGood.TDClayer \\ 
+\hline 
+tdc\_mult & \# of TDChits in channel & fGood.t\_mult \\
+\hline 
+tdc 	& Calibrated Good hit Leading edge TDC  &fGood.t  \\ 
+\hline 
+tdc\_te 	& Calibrated  Good hit Trailing Edge TDC  &fGood.t\_te  \\ 
+\hline 
+tdc\_tot 	& Calibrated  Good hit Time over Threshold  &fGood.t\_Tot  \\ 
+\hline 
+\hline 
+hits.elemID 	&  all hit's Element ID &fRaw.elemID \\
 	\hline 
 	hits.t 	&  all hit's Calibrated Leading edge TDC  &fRaw.t  \\ 
 	\hline 
@@ -416,59 +480,32 @@ If fStorerawHits is set true, then the ADC/TDC raw info is stored.
 	\hline 
 \end{tabular} 
 \end{center}
-\begin{center}
-	\begin{tabular}{|c|c|c|}
-		\hline 
-		Tree name	& Description &  Global variable\\ 
-		\hline 
-		hits.a 	&  all ADC integral of the all hits  (units pC)  &fRaw.a  \\ 
-		\hline 
-		hits.a\_amp 	&  all ADC peaks of the all hits  (units mV)  &fRaw.a\_amp  \\ 
-		\hline 
-		hits.a\_time	&  all ADC time of the all hits (units mV)  &fRaw.a\_time  \\ 
-		\hline 
-	\end{tabular} 
-\end{center}
 
-The good hit information is the following variables.
+
+
 
 \begin{center}
-\begin{tabular}{|c|c|c|}
+\begin{tabularx}{\textwidth}{|c|X|c|}
 	\hline 
 Tree name	& Description &  Global variable\\ 
-	\hline 
-nhits	& Number of total hits & fNHits  \\ 
-	\hline 
-ngoodhits	& Number of total good hits & fNGoodhits \\ 
-	\hline 
-row 	& Row of the detector element  & fGood.row  \\ 
-	\hline 
-col 	& Column of the detector element  & fGood.col \\
-	\hline 
-layer	& Layer of the detector element  & fGood.layer \\ 
-	\hline 
-ped	& Pedestal of the good hit (units mV) & fGood.ped \\ 
-	\hline 
-\end{tabular} 
-\end{center}
-
-\begin{center}
-\begin{tabular}{|c|c|c|}
-	\hline 
-Tree name	& Description &  Global variable\\ 
+\hline 
+adcelemID 	& Element ID in chanmap  & fGood.ADCelemID  \\ 
+\hline 
+adcrow 	& Row   & fGood.ADCrow  \\ 
+\hline
+adccol 	& Column   & fGood.ADCcol \\
+\hline 
+adclayer	& Layer   & fGood.ADClayer \\ 
+\hline 
+ped	& ADC pedestal  & fGood.ped \\ 
 	\hline 
 a	& ADC integral of the good hit (units pC)  &fGood.a  \\ 
 	\hline 
 a\_p	& Pedestal subtracted ADC integral of the good hit  (units pC) & fGood.a\_p \\ 
 	\hline 
 a\_c	& Energy Calibrated Pedestal subtracted ADC integral of the good hit (units GeV) & fGood.a\_c \\ 
-\end{tabular} 
-\end{center}
-
-\begin{center}
-\begin{tabular}{|c|c|c|}
-	\hline 
-Tree name	& Description &  Global variable\\ 
+\hline 
+adc\_mult & \# of ADChits in channel & fGood.a\_mult \\
 	\hline 
 a\_amp	& ADC peak of the good hit(units mV)  &fGood.a\_amp  \\ 
 \hline 
@@ -478,27 +515,21 @@ a\_time	& ADC time of the good hit  (units ns)  &fGood.a\_time  \\
 \hline 
 a\_amp	& ADC peak of the good hit (units mV)  &fGood.a\_amp  \\ 
 \hline 
-\end{tabular} 
+		\hline 
+hits.a 	&  all ADC integral of the all hits  (units pC)  &fRaw.a  \\ 
+\hline 
+hits.a\_amp 	&  all ADC peaks of the all hits  (units mV)  &fRaw.a\_amp  \\ 
+\hline 
+hits.a\_time	&  all ADC time of the all hits (units mV)  &fRaw.a\_time  \\ 
+\hline 
+\end{tabularx} 
 \end{center}
 
 
-\begin{center}
-\begin{tabular}{|c|c|c|}
-	\hline 
-	Tree name	& Description &  Global variable\\ 
-	\hline 
-	tdc 	& Calibrated Good hit Leading edge TDC  &fGood.t  \\ 
-\hline 
-	tdc\_te 	& Calibrated  Good hit Trailing Edge TDC  &fGood.t\_te  \\ 
-\hline 
-	tdc\_tot 	& Calibrated  Good hit Time over Threshold  &fGood.t\_Tot  \\ 
-\hline 
-\end{tabular} 
-\end{center}
 
 
 \begin{center}
-	\begin{tabular}{|c|c|c|}
+	\begin{tabularx}{\textwidth}{|c|X|c|}
 	\hline 
 	Tree name	& Description &  Global variable\\ 
 	\hline 
@@ -508,7 +539,7 @@ a\_amp	& ADC peak of the good hit (units mV)  &fGood.a\_amp  \\
 \hline 
 	samp 	& Calibrated Pedestal subtracted ADC samples (units mV) in 4ns bins &fGood.samps  \\ 
 \hline 
-\end{tabular} 
+\end{tabularx} 
 \end{center}
 
 %\section{ Todo list}
