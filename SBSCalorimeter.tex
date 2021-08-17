@@ -1,0 +1,123 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}  % Include figure files
+\usepackage{amsmath}  % Include figure files
+\usepackage{xcolor}
+\usepackage{tabularx}
+\begin{document}
+\title{SBSCalorimeter}
+\maketitle
+
+\section{Introduction}
+SBSCalorimeter contructor inherits from the SBSGenericDetector and leaves the SBSModeADC::Mode as kADCSimple
+and SBSModeTDC::Mode as  kNone.
+There is no separate Decode or CoarseProcess  method which are in  SBSHcal and SBSTotalShower.
+There is a ClearEvent method.
+The MakeGoodBlocks method for creating the fGoodBlock output data structure and the internal fBlockSet.
+The FindClusters method.
+
+\section{ReadDatabase}
+First it calls SBSGenericDetector::ReadDatabase.
+All additional parameters are optional.
+\begin{table}[h]
+\begin{center}
+\begin{tabularx}{\textwidth}{|c|X|c|}
+		\hline 
+Parameter name	& Description &  Global variable\\ 
+\hline
+emin & minimum energy (GeV) to include in cluster & fEmin \\
+\hline
+cluster\_dim &  vector of x and ymax cluster size &  cluster\_dim \\
+\hline
+nmax\_cluster & Max number of clusters to store & fMaxNclus \\
+\hline 
+const & constant for gain correction & fConst \\
+\hline 
+slope & slope for gain correction & fSlope \\
+\hline 
+acc\_charge & Accumulated charge & fAccCharge \\
+\hline
+\end{tabularx} 
+\end{center}
+\end{table}
+
+\section{MakeGoodBlocks method}
+Loops through all fElements to fill the fGoodBlocks which is an
+output SBSCalBlocks object which is a structure of vectors. If element is expecting TDC and ADC,
+then fills the fGoodBlock structure if both TDC and ADC of good\_hit index not equal to -1.
+If element is only expecting ADC, then fills the fGoodBlock structure if ADC of good\_hit index not equal to -1.
+After filling the fGoodBlocks stucture, then fills fBlockSet vector of SBSBlockSetList structures which
+is used in FindClusters method. The fBlockSet is filled if the fGoodBlock has an energy greater than fEmin.
+The  SBSBlockSetList structure has the row, col, id , x, y, TDCTime, e and ADCTime.
+The fBlockSet is sorted by energy.
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{\textwidth}{|c|X|c|}
+			\hline 
+			Variable	& Description &  Element method\\ 
+			row & Row & GetRow() \\
+			\hline
+			col & Column & GetCol() \\
+			\hline	
+		  id & Element ID & GetID() \\
+		  \hline
+		  x & x position (m) & GetX() \\
+		  \hline
+		  y & y position (m) & GetY() \\
+		  \hline
+		   TDCTime & LE tdc time (ns) & fTDC[good\_hit].le.val \\
+		   \hline
+		   e  & Energy (GeV) & fADC[good\_hit].integral.val or GetIntegral().val \\
+		   \hline
+		   ADCTime & ADC time( ns) & fADC[good\_hit].time.val or GetTime().val \\
+		   \hline
+\end{tabularx} 
+\end{center}
+\end{table}
+
+\section{FindClusters}
+The method loops through the fBlockSet until each element is assigned to a cluster.
+Cluster information is stored in fClusters which is a vector of SBSCalorimeterCluster objects.
+The first cluster is started with the element that has the maximum energy and the first
+element in fCluster is created and the vector element is removed from fBlockSet.
+A while loop is started for adding additional detector elements in fBlockSet to the present fCluster.
+Inside the while loops, the code loops through fBlockSet until is finds a neighbor or 
+reaches the end of fBlockSet.
+If it finds a neighbor, then the neighbor is added to the present fCluster element; 
+the vector element is removed from fBlockSet; and it again fBlockSet until is finds a neighbor or 
+reaches the end of fBlockSet.
+If it reaches the end of  fBlockSet then it stops adding detector elements to the present fCluster.
+If there are detector elements remaining in the fBlockSet, then another cluster is created from the
+first element in the fBlockSet which has been sorted by energy. 
+ This continues until  each element in fBlockSet has been assigned to a cluster.
+ 
+ Presently the neighbor is determined if the block is within given radius of the current cluster x and y
+ position. {\color{red} Need to update this and have parameters in ReadDatabase}
+ 
+ \section{SBSCalorimeterCluster}
+ SBSCalorimeterCluster is a class for storing calorimeter cluster information which is updated 
+ when a new element is added to the cluster.
+ The class stores the number of blocks in the cluster, fMult. It stores the total energy, energy weighted x
+ and y positions (fE, fX and fY)  
+ It stores the energy, row and col of the block with the highest energy.
+ It stores a SBSElement vector of the elements in the cluster and a pointer to the element with the maximum energy.
+ {\color{red} Need to add the TDC and ADC time information. } 
+ 
+ 
+\section{FineProcess}
+It first calls SBSGenericDetector::FineProcess.
+If clusters are found then it fills the fMainclus output tree structure.
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{\textwidth}{|c|X|c|}
+			\hline 
+			Parameter name	& Description &  Global variable\\ 
+			\hline
+\end{tabularx} 
+\end{center}
+\end{table}
+
+
+
+
+\end{document}
+

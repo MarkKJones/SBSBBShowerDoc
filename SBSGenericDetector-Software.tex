@@ -363,10 +363,11 @@ TDC hit which has the closest time to the GoodTimeCut parameter (comparison in u
 If one wants to access the TDCData structure of the good hit, then the SBSData function GetGoodHit()
 can be called. If the TDC channel has any hits then the good\_hit will be set.
 
-If the element has ADC data and the mode is kADCSimple, them the  fTDC.good\_hit is set to zero.
+If the element has ADC data and the mode is kADCSimple, them the  fADC.good\_hit is set to zero.
 If the mode is kADC, then the code loops through all hits in the channel and marks
 good\_hit index for the hit that is closest  to the GoodTimeCut parameter.
-{\color{red} For now only one hit is found fro the kWaveform mode so good\_hit index set to zero}
+{\color{red} For now only one hit is found for the kWaveform mode so good\_hit index set to zero
+if the ADC time $>$ 0}
 
 
 
