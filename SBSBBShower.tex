@@ -1,0 +1,64 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}  % Include figure files
+\usepackage{amsmath}  % Include figure files
+\usepackage{xcolor}
+\usepackage{tabularx}
+\begin{document}
+\title{SBSBBShower and SBSBBTotalShower}
+\maketitle
+
+\section{Introduction}
+It is best to call the SBSBBTotalShower constructor in the replay script without a separate SBSBBShower contructor
+for the PreShower and SHower. If one wants to
+just setup either the PreShower or Shower , then one can call the BBShower contructor individually.
+The SBSBBTotalShower constructor inherits from SBSCalorimeter. The  SBSBBTotalShower constructor
+calls a Setup method which constructs both fShower and fPreShower from the SBSBBShower contructor.
+SBSBBShower constructor inherits from the SBSCalorimeter and sets  SetModeADC(SBSModeADC::kWaveform) and
+SetModeTDC(SBSModeTDC::kNone).
+
+
+
+\section{ReadDatabase}
+The SBSBBTotalShower::Init function calls the fShower::ReadDatabase and the fPreShower::ReadDatabase.
+The SBSBBSHower::ReadDatabase first call the SBSCalorimeter::ReadDatabase. 
+Then  additional parameters are optionally read in, but need to revisit these parameters.
+The SBSBBTotalShower::ReadDatabase optional reads in additional parameters.
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{\textwidth}{|c|X|c|}
+			\hline 
+			Parameter	& Description &  Global variable\\ 
+			\hline
+		thr\_adc	 &   & fThrADC \\
+		\hline
+		clus\_rad & & fClusRadius \\
+		\hline
+		mc\_data & & fMCdata \\
+		\hline
+		dxdydz & used only locally & dxyz \\
+		\hline
+\end{tabularx} 
+\end{center}
+\end{table}
+
+\section{Decode}
+SBSBBTotalShower::Decode calls fShower and fPreShower Decode methods.
+
+\section{CoarseProcess}
+SBSBBTotalShower::CoarseProcess first calls fShower and fPreShower CoarseProcess methods.
+Then it calls  fShower and fPreShower MakeGoodBlocks methods.
+It call fShower FindCluster method. {\color{red} Need to add method to match the preshower good blocks
+with the shower clusters}
+
+\section{FineProcess}
+SBSBBTotalShower::FineProcess calls fShower FineProcess method.
+{\color{red} Need to add fPreshower FineProcess call}
+
+
+
+
+
+
+
+
+\end{document}

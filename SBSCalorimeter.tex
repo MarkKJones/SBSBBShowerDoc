@@ -51,9 +51,10 @@ The  SBSBlockSetList structure has the row, col, id , x, y, TDCTime, e and ADCTi
 The fBlockSet is sorted by energy.
 \begin{table}[h]
 	\begin{center}
-		\begin{tabularx}{\textwidth}{|c|X|c|}
+		\begin{tabularx}{\textwidth}{|c|c|X|}
 			\hline 
 			Variable	& Description &  Element method\\ 
+			\hline 
 			row & Row & GetRow() \\
 			\hline
 			col & Column & GetCol() \\
@@ -104,14 +105,42 @@ first element in the fBlockSet which has been sorted by energy.
  
  
 \section{FineProcess}
-It first calls SBSGenericDetector::FineProcess.
-If clusters are found then it fills the fMainclus output tree structure.
+It first calls SBSGenericDetector::FineProcess and then it fills
+various cluster structures for the tree output.
+The cluster information for tree output is saved in the SBSCalorimeterOutput structure.
+The vectors in the structure are given in Table.
+The fMainClus is a  SBSCalorimeterOutput structure for the cluster with the maximum energy
+os the vectors always have size of 1. There is a flag, fDataOutputLevel, which controls the
+additional output. This flag can be set with the function: SetDataOutputLevel(Int\_t).
+If fDataOutputLevel $>$ 0, then the SBSCalorimeterOutput structure fMainClusBlk is filled
+in which information of each block that is in the main cluster is loaded into the vectors.
+If fDataOutputLevel $>$ 1, then  the SBSCalorimeterOutput structure fOutClus is filled with
+the cluster information for each of the clusters.
+
 \begin{table}[h]
 	\begin{center}
 		\begin{tabularx}{\textwidth}{|c|X|c|}
 			\hline 
-			Parameter name	& Description &  Global variable\\ 
-			\hline
+Tree name	& Description &  Global variable\\ 
+\hline
+e & Energy of cluster &  \\
+\hline
+e\_c & Corrected energy of cluster & \\
+\hline
+x & x position (m) of cluster & \\
+\hline
+y & y position (m) of cluster & \\
+\hline
+blk\_e & Energy of block with max energy &  \\
+\hline
+blk\_e\_c & Corrected energy of block with max energy  & \\
+\hline
+row 	& row of block with max energy & \\	    
+\hline
+col 	& column of block with max energy & \\	    
+\hline
+id 	& Element ID  of block with max energy & \\	    
+\hline
 \end{tabularx} 
 \end{center}
 \end{table}

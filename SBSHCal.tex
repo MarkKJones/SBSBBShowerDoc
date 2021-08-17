@@ -1,0 +1,30 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}  % Include figure files
+\usepackage{amsmath}  % Include figure files
+\usepackage{xcolor}
+\usepackage{tabularx}
+\begin{document}
+\title{SBSCalorimeter}
+\maketitle
+
+\section{Introduction}
+SBSHCal constructor inherits from SBSCalorimeter. The constructor sets SBSModeADC::kWaveform
+and SBSModeTDC::kTDCSimple. 
+
+\section{ReadDatabase}
+First it reads the parameters for the ledmap which is a vector of the crate and slot of the LED.
+At end it calls SBSCalorimeter::ReadDatabase.
+
+\section{Decode}
+First it calls SBSCalorimeter::Decode. It then decodes the LED information.
+
+\section{CoarseProcess}
+First it calls SBSCalorimeter::CoarseProcess.
+Then it calls  SBSCalorimeter::MakeGoodBlocks followed by SBSCalorimeter::FindClusters.
+
+\section{Definevariables}
+First it calls  SBSCalorimeter::Definevariables. Then it add ledbit and ledcount to the output tree.
+
+
+
+\end{document}
